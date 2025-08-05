@@ -20,10 +20,22 @@ matplotlib.use('TkAgg')
 # Opciones: "evader", "pursuer", "evader_vs_pursuer", "none"
 VISUALIZE_MODEL = "evader_vs_pursuer"  
 
-# Rutas a los modelos entrenados. 
-# ¡Estas deben coincidir con las rutas del script de entrenamiento!
-EVADER_BEST_MODEL_PATH = "./models/evader_model_best/best_model.zip"
-PURSUER_BEST_MODEL_PATH = "./models/pursuer_model_best/best_model.zip"
+# Ruta dinámica a la carpeta de modelos
+LOCAL_MODELS_DIR = './models'
+DRIVE_MODELS_DIR = '/content/drive/MyDrive/saved_models'
+
+if os.path.exists(LOCAL_MODELS_DIR):
+    MODELS_DIR = LOCAL_MODELS_DIR
+    print(f"📁 Usando modelos desde: {MODELS_DIR}")
+elif os.path.exists(DRIVE_MODELS_DIR):
+    MODELS_DIR = DRIVE_MODELS_DIR
+    print(f"📁 Usando modelos desde Google Drive: {MODELS_DIR}")
+else:
+    raise FileNotFoundError("❌ No se encontraron modelos ni en './models' ni en Google Drive.")
+
+# Rutas completas a los modelos entrenados
+EVADER_BEST_MODEL_PATH = os.path.join(MODELS_DIR, "evader_model_best", "best_model.zip")
+PURSUER_BEST_MODEL_PATH = os.path.join(MODELS_DIR, "pursuer_model_best", "best_model.zip")
 
 class ChaseVisualizer:
     """Clase para manejar la visualización de la simulación de persecución con Matplotlib."""
