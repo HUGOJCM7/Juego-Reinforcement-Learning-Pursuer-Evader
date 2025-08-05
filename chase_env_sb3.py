@@ -139,13 +139,19 @@ class ChaseEnv(gym.Env):
         dist = np.linalg.norm(self.agent_rl.pos - self.bot.pos)
         caught = dist < (self.agent_rl.radius + self.bot.radius)
 
+        terminated = caught or (self.step_count >= self.max_steps)
+               
         if self.role == "evader":
             reward = (self.dt) - 1000.0 * float(caught)
+            reward += terminated * 1000.0 * float(~caught)  # Recompensa positiva si no es capturado
+            
         else:
             reward = 1000.0 * float(caught) - (self.dt)
+            reward -= terminated * 1000.0 * float(~caught) # Penalización si no captura al evasor
         reward -= self.dt * self.agent_rl.force
 
-        terminated = caught or (self.step_count >= self.max_steps)
+
+        
         truncated = False
 
         return self._get_obs(), reward, terminated, truncated, {}
