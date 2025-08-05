@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import os
 import warnings
-from stable_baselines3.common.env_util import make_vec_env
 
 # Oculta las advertencias de Gym/Gymnasium para una salida limpia
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -19,7 +18,6 @@ EVADER_MODEL_PATH = os.path.join(MODELS_DIR, "evader_lstm.zip")
 PURSUER_MODEL_PATH = os.path.join(MODELS_DIR, "pursuer_lstm.zip")
 
 # === Configurar visualización ===
-# Configura el backend de Matplotlib para asegurar que la ventana se muestre.
 import matplotlib
 matplotlib.use('TkAgg')
 
@@ -37,6 +35,7 @@ if __name__ == '__main__':
         exit()
 
     # === Crear entorno visual ===
+    # El agente principal será el perseguidor, y el bot será el evasor
     env = PursueEnv(bot_model=evader_model)
     obs, _ = env.reset()
 
@@ -57,6 +56,10 @@ if __name__ == '__main__':
     bot_dot, = ax.plot([], [], 'go', label="Evasor (Bot)", markersize=10, zorder=4)
     ax.legend()
     
+    # Flechas de velocidad
+    vel_agent_arrow = ax.quiver(0, 0, 0, 0, color='r', angles='xy', scale_units='xy', scale=1.0, zorder=5, width=0.005, headwidth=5)
+    vel_bot_arrow = ax.quiver(0, 0, 0, 0, color='g', angles='xy', scale_units='xy', scale=1.0, zorder=5, width=0.005, headwidth=5)
+
     # Rastro de movimiento
     trail_agent, = ax.plot([], [], 'r--', linewidth=1, alpha=0.7)
     trail_bot, = ax.plot([], [], 'g--', linewidth=1, alpha=0.7)
@@ -75,7 +78,6 @@ if __name__ == '__main__':
     history_bot = []
     total_reward = 0
 
-    # Activar verbosidad en consola (para cada paso)
     VERBOSE = False
 
     def init():
@@ -83,13 +85,14 @@ if __name__ == '__main__':
         bot_dot.set_data([], [])
         trail_agent.set_data([], [])
         trail_bot.set_data([], [])
+        vel_agent_arrow.set_UVC([], [], [])
+        vel_bot_arrow.set_UVC([], [], [])
         info_text.set_text("")
-        return agent_dot, bot_dot, trail_agent, trail_bot, info_text
+        return agent_dot, bot_dot, trail_agent, trail_bot, vel_agent_arrow, vel_bot_arrow, info_text
 
     def update(frame):
         global obs, pursuer_lstm_state, pursuer_episode_start, history_agent, history_bot, total_reward
 
-        # Predecir acción con memoria LSTM
         action, pursuer_lstm_state = pursuer_model.predict(
             obs,
             state=pursuer_lstm_state,
@@ -98,11 +101,9 @@ if __name__ == '__main__':
         )
         pursuer_episode_start = False
 
-        # Realizar paso en el entorno
         obs, reward, terminated, truncated, info = env.step(action)
         total_reward += reward
 
-        # Reiniciar episodio si terminó
         if terminated or truncated:
             dist = np.linalg.norm(env.agent_rl.pos - env.bot.pos)
             status_text = "CAPTURA" if dist < (env.agent_rl.radius + env.bot.radius) else "TIEMPO LÍMITE"
@@ -119,12 +120,20 @@ if __name__ == '__main__':
             history_bot.clear()
             total_reward = 0
 
-        # Actualizar posiciones en visual
+        # Actualizar posiciones y flechas
         agent_pos = env.agent_rl.pos
         bot_pos = env.bot.pos
-        
+        agent_vel = env.agent_rl.vel
+        bot_vel = env.bot.vel
+
         agent_dot.set_data([agent_pos[0]], [agent_pos[1]])
         bot_dot.set_data([bot_pos[0]], [bot_pos[1]])
+        
+        vel_agent_arrow.set_offsets(agent_pos)
+        vel_agent_arrow.set_UVC(agent_vel[0], agent_vel[1])
+        
+        vel_bot_arrow.set_offsets(bot_pos)
+        vel_bot_arrow.set_UVC(bot_vel[0], bot_vel[1])
 
         # Actualizar rastro de movimiento
         history_agent.append(agent_pos.copy())
@@ -149,7 +158,7 @@ if __name__ == '__main__':
         if VERBOSE:
             print(f"Paso: {env.step_count}, Dist: {dist:.2f}, Acc: {action}, Recompensa: {reward:.2f}")
 
-        return agent_dot, bot_dot, trail_agent, trail_bot, info_text
+        return agent_dot, bot_dot, trail_agent, trail_bot, vel_agent_arrow, vel_bot_arrow, info_text
 
     # Iniciar animación
     ani = FuncAnimation(fig, update, init_func=init, blit=True, interval=10)
