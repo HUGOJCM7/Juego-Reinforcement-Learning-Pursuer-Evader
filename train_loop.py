@@ -15,7 +15,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from chase_env_sb3 import EvadeEnv, PursueEnv
 
 # --- Configuración del entrenamiento ---
-NUM_ROUNDS = 15*9
+NUM_ROUNDS = 15*4
 TIMESTEPS_PER_ROUND = 50_000 
 
 # Ruta base automática relativa al archivo actual
