@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 from chase_env_sb3 import EvadeEnv, PursueEnv
 
 # === Configuración ===
-NUM_ROUNDS = 1 # Aumentamos para un mejor entrenamiento
+NUM_ROUNDS = 4 # Aumentamos para un mejor entrenamiento
 TIMESTEPS_PER_ROUND = 50_000
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
