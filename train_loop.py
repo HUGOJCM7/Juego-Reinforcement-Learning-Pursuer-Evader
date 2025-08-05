@@ -15,19 +15,19 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from chase_env_sb3 import EvadeEnv, PursueEnv
 
 # --- Configuración del entrenamiento ---
-NUM_ROUNDS = 15
+NUM_ROUNDS = 15*9
 TIMESTEPS_PER_ROUND = 50_000 
 
-# Directorios para guardar los modelos
-# Ahora las rutas apuntan directamente a los archivos .zip
-EVADER_SAVE_PATH = "./models/evader_model.zip"
-PURSUER_SAVE_PATH = "./models/pursuer_model.zip"
-# La ruta para el mejor modelo también debe ser consistente
-EVADER_BEST_MODEL_PATH = "./models/evader_model_best"
-PURSUER_BEST_MODEL_PATH = "./models/pursuer_model_best"
+# Ruta base automática relativa al archivo actual
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_DIR = os.path.join(BASE_DIR, "models")
 
-os.makedirs(os.path.dirname(EVADER_SAVE_PATH), exist_ok=True)
+EVADER_SAVE_PATH = os.path.join(MODELS_DIR, "evader_model.zip")
+PURSUER_SAVE_PATH = os.path.join(MODELS_DIR, "pursuer_model.zip")
+EVADER_BEST_MODEL_PATH = os.path.join(MODELS_DIR, "evader_model_best")
+PURSUER_BEST_MODEL_PATH = os.path.join(MODELS_DIR, "pursuer_model_best")
 
+os.makedirs(MODELS_DIR, exist_ok=True)
 
 def load_or_create_model(env, main_path, best_model_path, params):
     """Carga el mejor modelo si existe, si no, crea uno nuevo."""
