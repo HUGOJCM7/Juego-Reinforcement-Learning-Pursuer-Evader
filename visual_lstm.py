@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import os
 import warnings
+from stable_baselines3.common.env_util import make_vec_env
 
 # Oculta las advertencias de Gym/Gymnasium para una salida limpia
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -36,12 +37,10 @@ if __name__ == '__main__':
         exit()
 
     # === Crear entorno visual ===
-    # El agente principal será el perseguidor, y el bot será el evasor
     env = PursueEnv(bot_model=evader_model)
     obs, _ = env.reset()
 
     # === Inicializar estado LSTM ===
-    # Para el agente principal (perseguidor)
     pursuer_lstm_state = None
     pursuer_episode_start = True
     
@@ -62,21 +61,35 @@ if __name__ == '__main__':
     trail_agent, = ax.plot([], [], 'r--', linewidth=1, alpha=0.7)
     trail_bot, = ax.plot([], [], 'g--', linewidth=1, alpha=0.7)
     
+    # Texto de información
+    info_text = ax.text(
+        0.05, 0.95, "", 
+        transform=ax.transAxes, 
+        fontsize=10, 
+        ha='left', 
+        va='top', 
+        bbox=dict(boxstyle='round,pad=0.5', fc='white', alpha=0.7)
+    )
+    
     history_agent = []
     history_bot = []
+    total_reward = 0
+
+    # Activar verbosidad en consola (para cada paso)
+    VERBOSE = False
 
     def init():
         agent_dot.set_data([], [])
         bot_dot.set_data([], [])
         trail_agent.set_data([], [])
         trail_bot.set_data([], [])
-        return agent_dot, bot_dot, trail_agent, trail_bot
+        info_text.set_text("")
+        return agent_dot, bot_dot, trail_agent, trail_bot, info_text
 
     def update(frame):
-        global obs, pursuer_lstm_state, pursuer_episode_start, history_agent, history_bot
+        global obs, pursuer_lstm_state, pursuer_episode_start, history_agent, history_bot, total_reward
 
         # Predecir acción con memoria LSTM
-        # Se necesita expandir la dimensión para el predict de sb3-contrib
         action, pursuer_lstm_state = pursuer_model.predict(
             obs,
             state=pursuer_lstm_state,
@@ -87,22 +100,31 @@ if __name__ == '__main__':
 
         # Realizar paso en el entorno
         obs, reward, terminated, truncated, info = env.step(action)
+        total_reward += reward
 
         # Reiniciar episodio si terminó
         if terminated or truncated:
+            dist = np.linalg.norm(env.agent_rl.pos - env.bot.pos)
+            status_text = "CAPTURA" if dist < (env.agent_rl.radius + env.bot.radius) else "TIEMPO LÍMITE"
+            
+            print(f"\n--- Episodio Terminado ---")
+            print(f"Estado: {status_text}")
+            print(f"Pasos: {env.step_count}")
+            print(f"Recompensa Total: {total_reward:.2f}")
+
             obs, _ = env.reset()
             pursuer_lstm_state = None
             pursuer_episode_start = True
             history_agent.clear()
             history_bot.clear()
+            total_reward = 0
 
         # Actualizar posiciones en visual
-        # Usamos las coordenadas correctas (x, y) sin invertir
         agent_pos = env.agent_rl.pos
         bot_pos = env.bot.pos
         
-        agent_dot.set_data(agent_pos[0], agent_pos[1])
-        bot_dot.set_data(bot_pos[0], bot_pos[1])
+        agent_dot.set_data([agent_pos[0]], [agent_pos[1]])
+        bot_dot.set_data([bot_pos[0]], [bot_pos[1]])
 
         # Actualizar rastro de movimiento
         history_agent.append(agent_pos.copy())
@@ -114,10 +136,22 @@ if __name__ == '__main__':
 
         trail_agent.set_data(*zip(*history_agent))
         trail_bot.set_data(*zip(*history_bot))
+        
+        # Actualizar texto de información
+        dist = np.linalg.norm(agent_pos - bot_pos)
+        info_text.set_text(
+            f"Paso: {env.step_count}\n"
+            f"Distancia: {dist:.3f}\n"
+            f"Recompensa: {reward:.2f}\n"
+            f"Recompensa Total: {total_reward:.2f}"
+        )
+        
+        if VERBOSE:
+            print(f"Paso: {env.step_count}, Dist: {dist:.2f}, Acc: {action}, Recompensa: {reward:.2f}")
 
-        return agent_dot, bot_dot, trail_agent, trail_bot
+        return agent_dot, bot_dot, trail_agent, trail_bot, info_text
 
     # Iniciar animación
-    ani = FuncAnimation(fig, update, init_func=init, blit=True, interval=100)
+    ani = FuncAnimation(fig, update, init_func=init, blit=True, interval=10)
     plt.tight_layout()
     plt.show()
